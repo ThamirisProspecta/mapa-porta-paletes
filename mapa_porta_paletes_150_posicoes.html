@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mapa do Porta-Paletes — 150 posições</title>
+<style>
+:root{font-family:Arial,Helvetica,sans-serif;color:#263445;background:#f4f6f8}
+*{box-sizing:border-box}body{margin:0;padding:16px}.wrap{max-width:1500px;margin:auto}
+header,.panel{background:#fff;border:1px solid #d6dde5;border-radius:12px;padding:16px;margin-bottom:14px}
+h1{font-size:clamp(22px,3vw,32px);margin:0 0 6px}h2{font-size:18px;margin:0 0 12px}.muted{color:#627184;font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}
+.stat{border:1px solid #d6dde5;border-radius:10px;padding:12px;background:#fff}.stat b{display:block;font-size:25px;margin-top:4px}
+input,select,button{font:inherit;border-radius:8px;padding:11px;border:1px solid #c8d1dc}input,select{width:100%;background:white}
+button{cursor:pointer;background:#fff;font-weight:600}button.primary{background:#205ca8;color:#fff;border-color:#205ca8}
+.controls{display:flex;gap:8px;flex-wrap:wrap}.controls button{flex:0 1 auto}
+.map-scroll{overflow-x:auto;padding:3px 2px 12px}
+.map{display:grid;grid-template-columns:repeat(25,minmax(76px,1fr));gap:5px;min-width:2050px}
+.column{border:1px solid #cdd5de;border-radius:5px;padding:4px;background:#edf1f5}
+.colhead{text-align:center;font-size:12px;font-weight:bold;border-bottom:4px solid #526b86;padding:7px 2px;margin-bottom:4px}
+.level{padding:3px 0 5px;border-bottom:4px solid #b46c60;margin-bottom:4px}.level:last-child{margin-bottom:0}
+.levelname{text-align:center;font-size:11px;font-weight:bold;color:#526173;margin-bottom:4px}
+.slot{width:100%;min-height:74px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;overflow-wrap:anywhere;line-height:1.2;padding:4px;background:#f3e2bf;border:1px solid #b69b6b;border-bottom:4px solid #9d8056;color:#463a29;touch-action:manipulation}
+.slot.occupied{background:#dcece1;border-color:#82ac91;border-bottom-color:#568167}.slot.selected{outline:3px solid #205ca8;outline-offset:-2px}.slot.drop-target{outline:3px dashed #205ca8}.slot.dim{opacity:.22}.slot.match{box-shadow:inset 0 0 0 3px #d5a33d}
+.sku{font-weight:bold;font-size:11px}.pname{font-size:10px;margin-top:4px}.qty{font-size:10px;margin-top:3px}
+.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field label{display:block;font-size:12px;font-weight:bold;margin-bottom:5px}.status{font-size:14px;color:#526173;margin:8px 0 12px;min-height:20px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin-top:10px}.dot{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:middle}
+.hidden{display:none!important}
+@media(max-width:600px){body{padding:8px}.panel,header{padding:12px}.formgrid{grid-template-columns:1fr}.stats{gap:6px}.stat{padding:9px}.stat b{font-size:21px}}
+</style>
+</head>
+<body><div class="wrap">
+<header>
+<h1>📦 Mapa físico do porta-paletes</h1>
+<div class="muted">50 colunas · 3 níveis por coluna · 150 posições para paletes</div>
+<div class="stats"><div class="stat"><span class="muted">Total de posições</span><b>150</b></div><div class="stat"><span class="muted">Ocupadas</span><b id="used">0</b></div><div class="stat"><span class="muted">Livres</span><b id="free">150</b></div></div>
+<div class="field"><label for="search">Buscar produto, SKU ou coluna</label><input id="search" placeholder="Digite o nome, código ou número da coluna"></div>
+<div class="legend"><span><i class="dot" style="background:#f3e2bf;border:1px solid #b69b6b"></i>Livre</span><span><i class="dot" style="background:#dcece1;border:1px solid #82ac91"></i>Ocupado</span><span><i class="dot" style="background:#205ca8"></i>Selecionado</span></div>
+<p class="muted">No computador: arraste um palete para outro espaço. No celular/tablet: toque no palete e depois na posição de destino.</p>
+</header>
+<section class="panel"><h2>Estrutura 1 — colunas 25 a 1</h2><div class="map-scroll"><div id="map1" class="map"></div></div></section>
+<section class="panel"><h2>Estrutura 2 — colunas 26 a 50</h2><div class="map-scroll"><div id="map2" class="map"></div></div></section>
+<section class="panel">
+<h2>Produto e localização</h2><div id="location" class="status">Selecione uma posição no mapa.</div>
+<div class="formgrid">
+<div class="field"><label for="product">Nome do produto</label><input id="product" placeholder="Nome do produto"></div>
+<div class="field"><label for="sku">Código / SKU</label><input id="sku" placeholder="Código interno"></div>
+<div class="field"><label for="qty">Quantidade de unidades</label><input id="qty" type="number" min="0" step="1" value="0"></div>
+<div class="field"><label for="note">Lote / validade / observação</label><input id="note" placeholder="Opcional"></div>
+</div>
+<div class="controls" style="margin-top:12px">
+<button class="primary" id="save">Salvar produto</button><button id="move">Escolher destino</button><button id="clear">Liberar posição</button>
+</div>
+<div id="destinationPanel" class="hidden" style="margin-top:12px"><div class="field"><label for="destination">Mover para</label><select id="destination"></select></div><button class="primary" id="confirmMove" style="margin-top:8px">Confirmar movimentação</button></div>
+<p class="muted">O mapa salva automaticamente neste navegador. Para compartilhar o mesmo estoque entre vários dispositivos, será necessário conectar uma base de dados online.</p>
+</section>
+<section class="panel">
+<h2>Backup e recuperação</h2><p class="muted">Exporte uma cópia dos dados regularmente. O backup pode ser importado para recuperar o mapa neste ou em outro navegador.</p>
+<div class="controls"><button class="primary" id="export">Exportar backup</button><button id="import">Importar backup</button><input id="file" type="file" accept="application/json,.json" class="hidden"></div>
+<p id="message" class="muted" aria-live="polite">Salvamento automático local ativado.</p>
+</section>
+</div>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const STORE='portaPaletes150_v1';
+const products={};let selected='',moveSource='',query='',dragging='';
+const labels={1:'A',2:'B',3:'C',4:'D',5:'E',6:'F'};
+function levelFor(c,rank){return c<=25?4+rank:1+rank}
+function key(c,l){return c+'-'+l}
+function label(k){if(!k)return 'Nenhuma posição selecionada';const [c,l]=k.split('-').map(Number);return 'Coluna '+c+' · Nível '+labels[l]+' · '+(c<=25?'Estrutura 1':'Estrutura 2')}
+function say(t){$('message').textContent=t}
+function persist(){try{localStorage.setItem(STORE,JSON.stringify({version:1,products}));say('Salvo automaticamente neste navegador. Exporte backups regularmente.')}catch(e){say('Não foi possível salvar neste navegador. Exporte um backup.');}}
+function draw(){
+ for(let c=1;c<=50;c++){
+  const host=$(c<=25?'map1':'map2');let col=host.querySelector('[data-col="'+c+'"]');
+  if(!col){col=document.createElement('div');col.className='column';col.dataset.col=c;host.appendChild(col)}
+  col.innerHTML='<div class="colhead">'+c+'</div>';
+  for(let rank=0;rank<3;rank++){
+   const l=levelFor(c,rank),k=key(c,l),p=products[k],section=document.createElement('div');section.className='level';
+   const caption=document.createElement('div');caption.className='levelname';caption.textContent=labels[l];
+   const btn=document.createElement('button');btn.type='button';btn.className='slot'+(p?' occupied':'')+(selected===k?' selected':'');btn.dataset.key=k;btn.draggable=!!p;btn.setAttribute('aria-label',label(k)+(p?' · '+p.name:' · livre'));
+   if(p){const sku=document.createElement('span');sku.className='sku';sku.textContent=p.sku||'PALETE';const name=document.createElement('span');name.className='pname';name.textContent=p.name;const qty=document.createElement('span');qty.className='qty';qty.textContent='Qtd. '+p.qty;btn.append(sku,name,qty)}else btn.innerHTML='<span style="font-size:18px">＋</span><span>Livre</span>';
+   if(query){const match=(p&&[p.name,p.sku,p.note].some(v=>String(v||'').toLocaleLowerCase().includes(query)))||String(c)===query||label(k).toLocaleLowerCase().includes(query);btn.classList.add(match?'match':'dim')}
+   btn.addEventListener('click',()=>choose(k));
+   btn.addEventListener('dragstart',e=>{if(!products[k]){e.preventDefault();return}dragging=k;e.dataTransfer.setData('text/plain',k);e.dataTransfer.effectAllowed='move'});
+   btn.addEventListener('dragover',e=>{if(dragging&&dragging!==k){e.preventDefault();btn.classList.add('drop-target')}});
+   btn.addEventListener('dragleave',()=>btn.classList.remove('drop-target'));
+   btn.addEventListener('drop',e=>{e.preventDefault();btn.classList.remove('drop-target');const src=dragging||e.dataTransfer.getData('text/plain');dragging='';if(src&&src!==k)moveProduct(src,k)});
+   section.append(caption,btn);col.append(section);
+  }
+ }
+ $('used').textContent=Object.keys(products).length;$('free').textContent=150-Object.keys(products).length;
+ $('location').textContent=label(selected);
+ const p=products[selected];$('product').value=p?.name||'';$('sku').value=p?.sku||'';$('qty').value=p?.qty??0;$('note').value=p?.note||'';
+ $('save').disabled=!selected;$('move').disabled=!p;$('clear').disabled=!p;
+ $('destinationPanel').classList.toggle('hidden',!moveSource);
+ if(moveSource){const dest=$('destination'),old=dest.value;dest.innerHTML='';for(let c=1;c<=50;c++)for(let rank=0;rank<3;rank++){const k=key(c,levelFor(c,rank));if(k===moveSource)continue;const o=document.createElement('option');o.value=k;o.textContent=label(k)+(products[k]?' — ocupado (trocar)':' — livre');dest.append(o)}if([...dest.options].some(o=>o.value===old))dest.value=old}
+}
+function choose(k){if(moveSource){if(k===moveSource){moveSource='';draw();$('location').textContent='Movimentação cancelada.';return}moveProduct(moveSource,k);return}selected=k;draw();$('location').textContent=label(k)+(products[k]?' · produto cadastrado':' · posição livre')}
+function moveProduct(src,dst){if(!products[src]||src===dst)return;if(products[dst]){if(!confirm('O destino está ocupado. Deseja trocar os dois paletes de posição?'))return;const tmp=products[dst];products[dst]=products[src];products[src]=tmp}else{products[dst]=products[src];delete products[src]}selected=dst;moveSource='';persist();draw();$('location').textContent='Movimentação concluída: '+label(dst)}
+$('save').addEventListener('click',()=>{if(!selected)return;const name=$('product').value.trim(),sku=$('sku').value.trim(),qty=Number($('qty').value),note=$('note').value.trim();if(!name){$('location').textContent='Informe o nome do produto.';$('product').focus();return}if(!Number.isInteger(qty)||qty<0||!Number.isFinite(qty)){$('location').textContent='A quantidade deve ser um número inteiro igual ou maior que zero.';return}products[selected]={name,sku,qty,note};persist();draw();$('location').textContent='Produto salvo em '+label(selected)});
+$('move').addEventListener('click',()=>{if(!selected||!products[selected])return;moveSource=selected;draw();$('location').textContent='Escolha o destino na lista ou toque em outra posição do mapa.'});
+$('confirmMove').addEventListener('click',()=>{if(moveSource&&$('destination').value)moveProduct(moveSource,$('destination').value)});
+$('clear').addEventListener('click',()=>{if(selected&&products[selected]&&confirm('Liberar '+label(selected)+'?')){delete products[selected];persist();draw();$('location').textContent='Posição liberada.'}});
+$('search').addEventListener('input',e=>{query=e.target.value.trim().toLocaleLowerCase();draw()});
+$('export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({version:1,columns:50,positionsPerColumn:3,exportedAt:new Date().toISOString(),products},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='mapa-porta-paletes-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);say('Backup exportado. Guarde o arquivo em local seguro.')});
+$('import').addEventListener('click',()=>$('file').click());
+$('file').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const obj=JSON.parse(await f.text()),incoming=obj.products;if(!incoming||typeof incoming!=='object'||Array.isArray(incoming))throw Error();const clean={};for(const [k,p] of Object.entries(incoming)){if(!/^(?:[1-9]|[1-4][0-9]|50)-[1-6]$/.test(k)||!p||typeof p.name!=='string'||typeof p.qty!=='number'||!Number.isInteger(p.qty)||p.qty<0)throw Error();const c=+k.split('-')[0],l=+k.split('-')[1];if((c<=25&&l<4)||(c>=26&&l>3))throw Error();clean[k]={name:p.name,sku:String(p.sku||''),qty:p.qty,note:String(p.note||'')}}if(!confirm('Importar '+Object.keys(clean).length+' posições? Os dados atuais serão substituídos.'))return;Object.keys(products).forEach(k=>delete products[k]);Object.assign(products,clean);selected='';moveSource='';persist();draw();say('Backup importado e salvo neste navegador.')}catch(err){say('Arquivo inválido ou incompatível. Os dados atuais foram mantidos.')}finally{e.target.value=''}});
+try{const saved=JSON.parse(localStorage.getItem(STORE)||'{}');if(saved.products&&typeof saved.products==='object')Object.assign(products,saved.products)}catch(e){}
+draw();
+})();
+</script>
+</body></html>
